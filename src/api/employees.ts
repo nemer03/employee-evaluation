@@ -5,7 +5,8 @@ export interface Employee {
   id: string
   name: string
   position: string
-  score: number
+  department: string
+  avatarUrl?: string
   created_at: string
 }
 
@@ -21,10 +22,8 @@ export async function getEmployees(): Promise<Employee[]> {
 }
 
 // إضافة موظف جديد
-export async function addEmployee(name: string, position: string, score: number = 0): Promise<void> {
-  const { error } = await supabase.from('employees').insert([
-    { name, position, score }
-  ])
+export async function addEmployee(employee: Omit<Employee, 'id' | 'created_at'>): Promise<void> {
+  const { error } = await supabase.from('employees').insert([employee])
   if (error) throw error
 }
 
@@ -34,8 +33,9 @@ export async function deleteEmployee(id: string): Promise<void> {
   if (error) throw error
 }
 
-// تحديث تقييم موظف
-export async function updateEmployeeScore(id: string, score: number): Promise<void> {
-  const { error } = await supabase.from('employees').update({ score }).eq('id', id)
+// تحديث موظف
+export async function updateEmployee(employee: Employee): Promise<void> {
+  const { id, ...fields } = employee
+  const { error } = await supabase.from('employees').update(fields).eq('id', id)
   if (error) throw error
 }

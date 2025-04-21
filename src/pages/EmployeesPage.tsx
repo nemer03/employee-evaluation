@@ -1,73 +1,75 @@
+// src/pages/EmployeesPage.tsx
 import React, { useState, useEffect } from 'react';
 import { UserPlus } from 'lucide-react';
 import EmployeeList from '../components/employees/EmployeeList';
 import EmployeeModal from '../components/employees/EmployeeModal';
-import { Employee, MonthlyStats } from '../types';
-import { 
-  getEmployees, 
-  addEmployee, 
-  updateEmployee, 
-  removeEmployee,
-  getMonthlyStats 
-} from '../utils/storage';
 import { toast } from 'react-toastify';
+import { Employee } from '../api/employees';
+import {
+  getEmployees,
+  addEmployee,
+  updateEmployee,
+  deleteEmployee
+} from '../api/employees';
 
 const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
-  
+
   useEffect(() => {
     loadEmployees();
-    
-    // Load monthly stats to determine top performer
-    const stats = getMonthlyStats();
-    setMonthlyStats(stats);
   }, []);
-  
-  const loadEmployees = () => {
-    const loadedEmployees = getEmployees();
-    setEmployees(loadedEmployees);
+
+  const loadEmployees = async () => {
+    try {
+      const data = await getEmployees();
+      setEmployees(data);
+    } catch (error) {
+      console.error('خطأ في تحميل الموظفين:', error);
+      toast.error('فشل في تحميل بيانات الموظفين');
+    }
   };
-  
+
   const handleAddEmployee = () => {
     setIsModalOpen(true);
   };
-  
-  const handleSaveEmployee = (employee: Employee) => {
-    const isNew = !employees.some(e => e.id === employee.id);
-    
-    if (isNew) {
-      addEmployee(employee);
-      toast.success('تمت إضافة الموظف بنجاح');
-    } else {
-      updateEmployee(employee);
-      toast.success('تم تحديث بيانات الموظف بنجاح');
+
+  const handleSaveEmployee = async (employee: Employee) => {
+    try {
+      const isNew = !employees.some(e => e.id === employee.id);
+
+      if (isNew) {
+        await addEmployee({
+          name: employee.name,
+          position: employee.position,
+          department: employee.department,
+          avatarUrl: employee.avatarUrl || ''
+        });
+        toast.success('تمت إضافة الموظف بنجاح');
+      } else {
+        await updateEmployee(employee);
+        toast.success('تم تحديث بيانات الموظف بنجاح');
+      }
+
+      loadEmployees();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('فشل في حفظ الموظف:', error);
+      toast.error('حدث خطأ أثناء حفظ الموظف');
     }
-    
-    loadEmployees();
-    setIsModalOpen(false);
   };
-  
-  const handleDeleteEmployee = (id: string) => {
-    removeEmployee(id);
-    toast.success('تم حذف الموظف بنجاح');
-    loadEmployees();
+
+  const handleDeleteEmployee = async (id: string) => {
+    try {
+      await deleteEmployee(id);
+      toast.success('تم حذف الموظف بنجاح');
+      loadEmployees();
+    } catch (error) {
+      console.error('فشل في حذف الموظف:', error);
+      toast.error('حدث خطأ أثناء حذف الموظف');
+    }
   };
-  
-  // Find the top performer for the current month
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  
-  const topPerformerStat = monthlyStats.find(
-    stat => stat.month === currentMonth && 
-           stat.year === currentYear && 
-           stat.isTopPerformer
-  );
-  
-  const topPerformerId = topPerformerStat?.employeeId;
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -85,11 +87,11 @@ const EmployeesPage: React.FC = () => {
           إضافة موظف
         </button>
       </div>
-      
+
       {employees.length > 0 ? (
-        <EmployeeList 
+        <EmployeeList
           employees={employees}
-          monthlyTopPerformer={topPerformerId}
+          monthlyTopPerformer={undefined} // التقييم الشهري يمكن ربطه لاحقًا
           onEdit={handleSaveEmployee}
           onDelete={handleDeleteEmployee}
         />
@@ -105,7 +107,7 @@ const EmployeesPage: React.FC = () => {
           </button>
         </div>
       )}
-      
+
       {isModalOpen && (
         <EmployeeModal
           employee={null}
